@@ -1,15 +1,15 @@
 ---
 name: springboot-api-test-workflow
-description: Use when the user wants to batch-test a Spring Boot REST API''s report endpoints, says "跑一下接口" / "测试这 11 个接口" / "跑一遍 /report/pc/..." / wants an HTML report of POST list + GET export-excel style endpoints, or provides a markdown table of report endpoints to validate. Works on a real running Spring Boot service (localhost or LAN), produces a single-file HTML report with clickable rows showing real request/response. NOT for unit tests (JUnit), not for UI/E2E (use playwright skill), and not for mock self-tests.
+description: Use when the user wants to batch-test a list of REST endpoints (any backend, any business domain), says "跑一下接口" / "测试这批接口" / wants an HTML report with clickable rows showing real request/response, or provides a markdown table of endpoints to validate. Works on a real running HTTP service (localhost or LAN), produces a single-file HTML report. Each query endpoint is hit with 3 param sets (min / default / full) to cross-validate SQL behavior. NOT for unit tests (JUnit), not for UI/E2E (use playwright skill), and not for mock self-tests.
 ---
 
-# Spring Boot 报表接口批量测试工作流 v4
+# REST 接口批量测试工作流 v4
 
 跑通"先 token → 再测试 → 出报告"全流程。**核心原则：永远先打真服务，绝不 mock 自测骗自己。**
 
 ## 启动条件
 
-- Spring Boot 服务**已经跑起来**（不是本 skill 的事）
+- 你的服务**已经跑起来**(任何 HTTP 后端都行,不是本 skill 的事)
 - 用户给：① **baseUrl** ② **token** ③ **接口清单**（md/表格/文字都行）
 - Node 24+ / npm 11+
 
@@ -52,7 +52,7 @@ node scripts/probe.js
 - 9 个 POST 列表接口 × **3 套入参** = 27 case
 - 2 个 GET（详情 + 柏拉图） × 3 套入参 = 6 case
 - 9 个 GET 导出 × **2 套入参** = 18 case
-- **合计 51 case / 20 episode**
+- 合计 case 数 = 你的接口数 × 每接口入参数
 
 ### 3 套入参（v4 核心改进）
 
@@ -78,7 +78,7 @@ node scripts/inject.js probe.json report.template.html test-report.html
 报告特点（**参考 examples/test-report.html**）：
 - 单文件 HTML，无构建
 - 顶部 **4 个 stat 块**（接口数 / 通过 / 警告 / 失败）—— 按 episode 维度算（同一接口只要有 1 套入参挂了就计入对应状态）
-- **1 行 1 接口**（20 episode） + D / F / M 三个 mini chip
+- **1 行 1 接口**(N episode) + D / F / M 三个 mini chip
 - **点开 episode**：3 套入参 tab 可切，每个 tab 有 REQUEST + RESPONSE 双栏
 - **真实 token 显示**（不脱敏）
 - **4 种状态色**（PASS 绿 / WARN 黄 / FAIL 红 / UNK 灰）+ **2 种 method 色**（POST 琥珀 / GET 青绿）
@@ -161,7 +161,7 @@ springboot-api-test-workflow/
 ## 调用本 skill 的话术
 
 当用户说以下任意一种时触发：
-- "把这 11 个报表接口跑一遍" / "测一下销售订单 / 客户 / 订单明细"
+- "把这 11 个接口跑一遍" / "测一下销售订单 / 客户 / 订单明细"
 - "给我出一份接口测试报告" / "要可点击看入参出参的"
 - "http://localhost:9123 用这个 token 跑一下" / 提供 baseUrl + token + 接口清单
 - "上次那个 springboot 接口测试 skill 跑一下"（指本 skill）
