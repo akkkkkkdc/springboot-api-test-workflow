@@ -2,7 +2,7 @@
 
 > 批量跑 Spring Boot 报表接口 · 3 套入参交叉验证 · 单文件 HTML 报告 · 真服务测试（绝无 mock）
 
-[![Node](https://img.shields.io/badge/Node-24%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/Node-24%2B-339933?logo=node.`js&logoColor=white)](https://node`js.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Skill](https://img.shields.io/badge/Codex-skill-6F86FF?logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzZGODZGRiIvPjwvc3ZnPg==)](https://github.com/)
 
@@ -53,7 +53,7 @@
 
 | 顺序 | 位置 | 怎么打 |
 |---|---|---|
-| ① | 请求体 body (json 字段) | `POST` body 加 `"token": "<user_token>"` |
+| ① | 请求体 body `json 字段` | `POST` body 加 `"token": "<user_token>"` |
 | ② | 请求头 Authorization | `Authorization: Bearer <user_token>"` |
 | ③ | 请求头 X-Token / token | `token: <user_token>"`（不带 Bearer） |
 | ④ | Cookie | `Cookie: JSESSIONID=xxx; token=xxx` |
@@ -86,25 +86,25 @@ const TOKEN = process.env.TEST_TOKEN || 'eyJ0eXAiOiJKV1Q...';
 
 ```bash
 # 编辑 probe.js 顶部 3 行：OUT / BASE（TOKEN 走环境变量）
-node probe.js
+node scripts/probe.js
 # 生成 probe.json（51 case / 20 episode）
 ```
 
 ### 5. 出报告 + 打开
 
 ```bash
-node inject.js probe.json report.template.html test-report.html
+node scripts/inject.js probe.json scripts/report.template.html test-report.html
 ```
 
 ### 6. 看报告
 
 ```bash
 # Windows
-start test-report.html
+start examples/test-report.html
 # macOS
-open test-report.html
+open examples/test-report.html
 # Linux
-xdg-open test-report.html
+xdg-open examples/test-report.html
 ```
 
 ---
@@ -175,21 +175,26 @@ xdg-open test-report.html
 springboot-api-test-workflow/
 ├── README.md                          ← 你正在看
 ├── SKILL.md                           ← Codex skill 配置入口
-├── probe.js                           ← 跑 51 case（清单驱动）
-├── inject.js                          ← probe.json → HTML
-├── report.template.html               ← HTML 模板（固化设计）
-├── test-report.html                   ← 示例输出（token 已脱敏为 <REDACTED-JWT>）
-├── interfaces-mock.md                ← 示例接口清单（mock）
-├── docs/
-│   └── images/
-│       ├── report-hero.png
-│       ├── expanded-M.3.png
-│       └── report-full.png
-├── auth-5-positions.md                ← 鉴权 5 个位置详解
-├── default-design-system.md           ← 设计 token（颜色/字体/间距）
-├── self-audit-checklist.md            ← 16 条自检清单
-├── newman-vs-node-raw.md              ← 为什么不用 Newman
-└── what-is-mock-and-why-not.md        ← mock ≠ 真测试
+├── push.ps1                           ← 一键推 GitHub
+├── LICENSE                            ← MIT
+├── scripts/                           ← 核心脚本
+│   ├── probe.js                       ← 跑 51 case（清单驱动）
+│   ├── inject.js                      ← probe.json → HTML
+│   └── report.template.html           ← HTML 模板（固化设计）
+├── references/                        ← 知识库
+│   ├── auth-5-positions.md            ← 鉴权 5 个位置详解
+│   ├── default-design-system.md       ← 设计 token（颜色/字体/间距）
+│   ├── self-audit-checklist.md        ← 16 条自检清单
+│   ├── newman-vs-node-raw.md          ← 为什么不用 Newman
+│   └── what-is-mock-and-why-not.md    ← mock ≠ 真测试
+├── examples/                          ← 示例输出
+│   ├── interfaces-mock.md             ← 示例接口清单（mock）
+│   ├── test-report.html               ← 生成的报告（最终态）
+│   └── test-report-top.png            ← 报告顶部截图
+└── docs/images/                       ← README 截图
+    ├── report-hero.png
+    ├── expanded-M.3.png
+    └── report-full.png
 ```
 
 ---
@@ -214,14 +219,13 @@ springboot-api-test-workflow/
 | 3 | POST   | /api/yyy/list   | yyy列表 |
 ```
 
-> 字段顺序无要求,只要含 Method + Path + 
-ame/说明。probe.js 会按行解析。
+> 字段顺序无要求,只要含 Method + Path + name/说明。probe.js 会按行解析。
 
 ### Step 2 · 改 probe.js 的 3 处
 
-打开 probe.js,改最顶上 3 行:
+打开 `scripts/probe.js`,改最顶上 3 行:
 
-`js
+```js
 const OUT  = 'C:/path/to/your/output-dir';   // 报告输出目录
 const BASE = 'http://your-service:9123';      // Spring Boot 服务地址
 
@@ -245,29 +249,29 @@ const PARAMS = {
     token: TOKEN
   }
 };
-`
+```
 
 ### Step 3 · 设置 token + 跑
 
-`powershell
+```powershell
 # Windows PowerShell
 $env:TEST_TOKEN = "eyJ0eXAiOiJKV1..."     # 你的真 token
-node probe.js                                # 生成 probe.json
-node inject.js probe.json report.template.html test-report.html
-start test-report.html                       # 双击打开
-`
+node scripts/probe.js                                # 生成 probe.json
+node scripts/inject.js probe.json scripts/report.template.html test-report.html
+start examples/test-report.html                       # 双击打开
+```
 
-`ash
+```bash
 # macOS / Linux
 export TEST_TOKEN="eyJ0eXAiOiJKV1..."
-node probe.js
-node inject.js probe.json report.template.html test-report.html
-open test-report.html
-`
+node scripts/probe.js
+node scripts/inject.js probe.json scripts/report.template.html test-report.html
+open examples/test-report.html
+```
 
 ### Step 4 · 看报告
 
-打开 	est-report.html 之后,直接看顶部 4 个统计块 + 下方折叠列表:
+打开 `examples/test-report.html` 之后,直接看顶部 4 个统计块 + 下方折叠列表:
 
 - **绿色 POST** = 查询接口
 - **青色 GET**  = 导出/详情接口
@@ -278,16 +282,16 @@ open test-report.html
 
 ### 自定义:只跑 1 个接口调试
 
-`js
+```js
 // 在 probe.js 底部, 临时加一行
 runOne({ n:'DEBUG', name:'xxx列表', path:'/api/xxx/list' }, 'default');
-`
+```
 
 跑完会打 1 条 case 到控制台,确认 body / 鉴权 / SQL 都对再批量跑。
 
 ### 自定义:Token 在请求头
 
-`js
+```js
 // 改 probe.js 里的 httpPost / httpGet 函数
 function httpPost(path, body) {
   return new Promise((resolve, reject) => {
@@ -301,10 +305,19 @@ function httpPost(path, body) {
         'Content-Length': data.length,
         'token':         TOKEN    // 改这里
       }
-    }, ...
-`
+    }, res => {
+      let chunks = [];
+      res.on('data', d => chunks.push(d));
+      res.on('end', () => resolve(JSON.parse(Buffer.concat(chunks).toString())));
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+```
 
-> 所有自定义示例都在 docs/ 或 eferences/ 里 (uth-5-positions.md / default-design-system.md)。
+> 所有自定义示例都在 `references/` 里 (`auth-5-positions.md` / `default-design-system.md`)。
 ## 调试踩坑（10 条）
 
 1. **不要一开始就否认用户的 token** —— 先试 5 个鉴权位置
@@ -333,7 +346,7 @@ function httpPost(path, body) {
 
 ### 数据真实性
 - [ ] **token 不脱敏** —— 直接显示在 meta-row 和展开的 REQUEST 里
-- [ ] stat-strip 5 个数字 = `node probe.js` 跑出来的实际数（不是写死）
+- [ ] stat-strip 5 个数字 = `node scripts/probe.js` 跑出来的实际数（不是写死）
 - [ ] callout 文案根据 FAIL/WARN/PASS 动态生成
 - [ ] diff-note 正确反映"3 套入参 total 是否一致"
 
