@@ -65,15 +65,6 @@ springboot-api-test-workflow/
 ```
 
 
----
-
-## 注意事项
-
-- **先试鉴权位置,别先怀疑 token** — 5 个位置(请求体 / Authorization 头 / X-Token 头 / Cookie / Query String)按顺序试,通常第三个就中。
-- **GET 的 token 走 query string,POST 走 body** — 后端鉴权方式不固定,两种都准备。
-- **跑完立刻看 diff-note** — 报告里每个 episode 都有 ⚡ 数据条数对比,min/default/full 三套入参 total 不一样才说明 SQL 在按参数走,完全一样可能是后端忽略参数。
-- **遇到 401 别改 token** — 先去 `references/auth-5-positions.md` 对照看鉴权位点对不对。
-
 
 
 
