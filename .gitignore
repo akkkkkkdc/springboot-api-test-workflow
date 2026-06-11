@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Probe / build artifacts
+probe.json
+probe-*.json
+swagger-untested.json
+test-report-local.html
+*.tmp
+*.bak
+*.log
+
+# Authoring scripts (one-off Python helpers used to bootstrap the project)
+patch-*.py
+sanitize-*.py
+gen-*.py
+edit-*.py
+extract-*.py
+inspect.js
+
+# Auth
+.token
+.env
+.env.local
+
+# OS
+desktop.ini
