@@ -39,7 +39,7 @@
 
 ---
 
-## 5 步快速跑起来
+## 6 步快速跑起来
 
 ### 1. 装环境
 
@@ -90,13 +90,13 @@ node probe.js
 # 生成 probe.json（51 case / 20 episode）
 ```
 
-### 5. 出报告
+### 5. 出报告 + 打开
 
 ```bash
 node inject.js probe.json report.template.html test-report.html
 ```
 
-### 5. 打开报告
+### 6. 看报告
 
 ```bash
 # Windows
@@ -194,6 +194,117 @@ springboot-api-test-workflow/
 
 ---
 
+
+
+---
+
+## 完整使用流程（30 秒跑通）
+
+按下面 4 步，**从克隆到出报告**一气呵成：
+
+### Step 1 · 准备接口清单
+
+随便写一个 my-endpoints.md，最简格式：
+
+```markdown
+| # | Method | Path | 说明 |
+|---|--------|------|------|
+| 1 | POST   | /api/xxx/list   | xxx列表 |
+| 2 | GET    | /api/xxx/export| xxx导出 |
+| 3 | POST   | /api/yyy/list   | yyy列表 |
+```
+
+> 字段顺序无要求,只要含 Method + Path + 
+ame/说明。probe.js 会按行解析。
+
+### Step 2 · 改 probe.js 的 3 处
+
+打开 probe.js,改最顶上 3 行:
+
+`js
+const OUT  = 'C:/path/to/your/output-dir';   // 报告输出目录
+const BASE = 'http://your-service:9123';      // Spring Boot 服务地址
+
+// 接口清单改成你自己的 (probe.js 里有 demo, 全删了换)
+const listEndpoints = [
+  { n:'1', name:'xxx列表',   path:'/api/xxx/list'    },
+  { n:'2', name:'xxx导出',   path:'/api/xxx/export'  },
+  { n:'3', name:'yyy列表',   path:'/api/yyy/list'    }
+];
+// GET 详情/图表: getEndpoints
+// 导出接口:    exportEndpoints
+
+// 3 套入参改成你的业务字段
+const PARAMS = {
+  min:     { pageNum: 1, pageSize: 5, token: TOKEN },
+  default: { keyword: 'TEST', pageNum: 1, pageSize: 5, token: TOKEN },
+  full: {
+    keyword: 'TEST', pageNum: 1, pageSize: 20,
+    startTime: '2026-01-01', endTime: '2026-06-10',
+    /* 这里放你接口的所有维度字段 */
+    token: TOKEN
+  }
+};
+`
+
+### Step 3 · 设置 token + 跑
+
+`powershell
+# Windows PowerShell
+$env:TEST_TOKEN = "eyJ0eXAiOiJKV1..."     # 你的真 token
+node probe.js                                # 生成 probe.json
+node inject.js probe.json report.template.html test-report.html
+start test-report.html                       # 双击打开
+`
+
+`ash
+# macOS / Linux
+export TEST_TOKEN="eyJ0eXAiOiJKV1..."
+node probe.js
+node inject.js probe.json report.template.html test-report.html
+open test-report.html
+`
+
+### Step 4 · 看报告
+
+打开 	est-report.html 之后,直接看顶部 4 个统计块 + 下方折叠列表:
+
+- **绿色 POST** = 查询接口
+- **青色 GET**  = 导出/详情接口
+- 点击任意一行 = 展开看该接口的 **3 套入参 + 真实响应**
+- 顶部 callout 会自动汇总 "**N 个接口返回空数据**" 等系统性问题
+
+> **如果一个接口都没识别到**: 99% 是鉴权位置没找对. 回去看 [5 个鉴权位点](#22-摸鉴权位置5-分钟)。
+
+### 自定义:只跑 1 个接口调试
+
+`js
+// 在 probe.js 底部, 临时加一行
+runOne({ n:'DEBUG', name:'xxx列表', path:'/api/xxx/list' }, 'default');
+`
+
+跑完会打 1 条 case 到控制台,确认 body / 鉴权 / SQL 都对再批量跑。
+
+### 自定义:Token 在请求头
+
+`js
+// 改 probe.js 里的 httpPost / httpGet 函数
+function httpPost(path, body) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(BASE + path);
+    const data = Buffer.from(JSON.stringify(body));
+    const req = http.request({
+      hostname: u.hostname, port: u.port,
+      path: u.pathname, method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Content-Length': data.length,
+        'token':         TOKEN    // 改这里
+      }
+    }, ...
+`
+
+> 所有自定义示例都在 docs/ 或 eferences/ 里 (uth-5-positions.md / default-design-system.md)。
 ## 调试踩坑（10 条）
 
 1. **不要一开始就否认用户的 token** —— 先试 5 个鉴权位置
