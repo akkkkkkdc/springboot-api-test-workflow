@@ -1,8 +1,8 @@
-# springboot-api-test-workflow
+NOT FOUND: - 已在开发中的 Spring Boot 项目（localhost / 内网 I NOT FOUND: - 任意 REST 接口的批量验证（查询/详情/导出） NOT FOUND: // 你的服务地址 NOT FOUND: # 跑 N case (N = 你的接口数) NOT FOUND: # 生成 probe.json (case 数 = 你的接口数 × 入参数) NOT FOUND: - 你的服务**已经跑起来**(任何 HTTP 后端都行,不是本 skill 的事)   ok: > 批量跑 Spring Boot 报表接口 · 3 套入参交叉验证 · 单文件 # springboot-api-test-workflow
 
-> 批量跑 Spring Boot 报表接口 · 3 套入参交叉验证 · 单文件 HTML 报告 · 真服务测试（绝无 mock）
+> 批量测试任意 REST 接口 · 3 套入参交叉验证 · 单文件 HTML 报告 · 真服务测试（绝无 mock）
 
-[![Node](https://img.shields.io/badge/Node-24%2B-339933?logo=node.`js&logoColor=white)](https://node`js.org)
+[![Node](https://img.shields.io/badge/Node-24%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Skill](https://img.shields.io/badge/Codex-skill-6F86FF?logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzZGODZGRiIvPjwvc3ZnPg==)](https://github.com/)
 
@@ -18,7 +18,7 @@
 
 ![Expanded](docs/images/expanded-M.3.png)
 
-**全长 — 20 个 episode 全展示**
+**全长 — 全部 episode 一次展示**
 
 ![Full](docs/images/report-full.png)
 
@@ -26,16 +26,9 @@
 
 ## 是什么
 
-一个 [Codex CLI skill](https://github.com/openai/codex)，给**真在跑的 Spring Boot 服务**做接口批量测试，跑完出一个**单文件 HTML 报告**（双击直接打开，无任何外部依赖）。
+一个 [Codex CLI skill](https://github.com/openai/codex)。把一组 REST 接口扔给它,真打后端,**每条查询接口用 3 套入参交叉验证**,跑完出一个**单文件 HTML 报告**(双击直接打开,无外部依赖)。
 
-不是单元测试，不是 mock 自测，是**真打后端 51 次**（17 查询 × 3 套入参 + 2 详情/柏拉图 × 3 + 9 导出 × 2）。
-
-## 4 大特点
-
-1. **3 套入参交叉验证** — 每个查询接口跑 `min`（最小）/ `default`（默认）/ `full`（满参数）三套入参，**对比 total/records 差异**，自动判断"参数是否影响 SQL"
-2. **1 行 1 接口** — 20 episode（9 POST 列表 + 2 GET 详情/柏拉图 + 9 GET 导出），**点开展开看 3 套入参的入参/出参**
-3. **真实数据透明** — token 不脱敏直接显示，size/elapsed/biz 都用蓝色提亮
-4. **设计已固化** — POST 琥珀 / GET 青绿 / 状态实色，每跑一次 UI 都一样
+不限技术栈,不限业务类型。给前端 / 后端 / 测试 / 运维用都行,前提是**有真服务在跑**。
 
 ---
 
@@ -43,7 +36,7 @@
 
 ### 1. 装环境
 
-- Spring Boot 服务**已经跑起来**（不是本 skill 的事）
+- 你的服务**已经跑起来**(任何 HTTP 后端都行,不是本 skill 的事)
 - Node 24+ / npm 11+
 - 拿到 ① **baseUrl** ② **token** ③ **接口清单**（md/表格/文字都行）
 
@@ -87,7 +80,7 @@ const TOKEN = process.env.TEST_TOKEN || 'eyJ0eXAiOiJKV1Q...';
 ```bash
 # 编辑 probe.js 顶部 3 行：OUT / BASE（TOKEN 走环境变量）
 node scripts/probe.js
-# 生成 probe.json（51 case / 20 episode）
+# 生成 probe.json (case 数 = 你的接口数 × 入参数)
 ```
 
 ### 5. 出报告 + 打开
@@ -178,7 +171,7 @@ springboot-api-test-workflow/
 ├── push.ps1                           ← 一键推 GitHub
 ├── LICENSE                            ← MIT
 ├── scripts/                           ← 核心脚本
-│   ├── probe.js                       ← 跑 51 case（清单驱动）
+│   ├── probe.js                       ← 跑 N case (N = 你的接口数)
 │   ├── inject.js                      ← probe.json → HTML
 │   └── report.template.html           ← HTML 模板（固化设计）
 ├── references/                        ← 知识库
@@ -227,7 +220,7 @@ springboot-api-test-workflow/
 
 ```js
 const OUT  = 'C:/path/to/your/output-dir';   // 报告输出目录
-const BASE = 'http://your-service:9123';      // Spring Boot 服务地址
+const BASE = 'http://your-service:9123';      // 你的服务地址
 
 // 接口清单改成你自己的 (probe.js 里有 demo, 全删了换)
 const listEndpoints = [
@@ -318,49 +311,15 @@ function httpPost(path, body) {
 ```
 
 > 所有自定义示例都在 `references/` 里 (`auth-5-positions.md` / `default-design-system.md`)。
-## 调试踩坑（10 条）
 
-1. **不要一开始就否认用户的 token** —— 先试 5 个鉴权位置
-2. **GET 接口的 token 必须拼到 query string** —— POST 在 body 里，**两个都试**
-3. **`probe.js` 里的 GET 构造必须有 `u.searchParams.set('token', token)`** —— 不然 GET 永远 401
-4. **业务码解析要支持字符串** —— 后端可能 `"code": "-1"`（带引号）而不是 `"code": -1`
-5. **详情接口 splitId 是必传** —— 3 套入参都必须带（v4 探针自动注入）
-6. **JWT 没 exp 字段不等于 token 永久有效** —— 后端可能用 Redis 或 IP 绑定 session
-7. **同一 token 不能跨 session 用** —— 拿 token 立刻连打 51 个，别分批跑
-8. **导出 Excel 的 content-type 不一定是 `spreadsheetml`** —— 也可能是 `application/vnd.ms-excel`
-9. **PowerShell 写 JS 文件用 `node -e` 或 `Out-File` 转义很坑** —— 用 `node script.js` 跑独立脚本最稳
-10. **method chip CSS 没生效？** —— 检查 JS 里 `class="ep-method"` 是否拼接了 method 名（必须是 `class="ep-method POST"`）
+## 注意事项
+
+- **先试鉴权位置,别先怀疑 token** — 5 个位置(请求体 / Authorization 头 / X-Token 头 / Cookie / Query String)按顺序试,通常第三个就中。
+- **GET 的 token 走 query string,POST 走 body** — 后端鉴权方式不固定,两种都准备。
+- **跑完立刻看 diff-note** — 报告里每个 episode 都有 ⚡ 数据条数对比,min/default/full 三套入参 total 不一样才说明 SQL 在按参数走,完全一样可能是后端忽略参数。
+- **遇到 401 别改 token** — 先去 `references/auth-5-positions.md` 对照看鉴权位点对不对。
 
 ---
-
-## 自检清单（16 条）
-
-跑完报告后过一遍：
-
-### 报告结构
-- [ ] **1 行 1 接口**（不是 1 行 1 case）
-- [ ] 行内 D / F / M 三个 chip 各自带状态色
-- [ ] 点开展开后，3 套入参 tab 可切换
-- [ ] 每个 tab 里有 REQUEST 和 RESPONSE 双栏
-- [ ] JSON 有 4 色语法高亮（key 蓝 / 字符串 绿 / 数字 黄 / null 红）
-
-### 数据真实性
-- [ ] **token 不脱敏** —— 直接显示在 meta-row 和展开的 REQUEST 里
-- [ ] stat-strip 5 个数字 = `node scripts/probe.js` 跑出来的实际数（不是写死）
-- [ ] callout 文案根据 FAIL/WARN/PASS 动态生成
-- [ ] diff-note 正确反映"3 套入参 total 是否一致"
-
-### 视觉
-- [ ] `<html lang="zh-CN">` 设置了
-- [ ] 用了 Inter + PingFang SC 字体回退
-- [ ] **单一主色** `#6F86FF`
-- [ ] 字号跨度 ≥ 4 倍（h1 56 → label 11）
-- [ ] ep-head padding ≥ 28px 横向 / 24px 纵向（**不紧凑**）
-- [ ] ep 间 gap ≥ 16px
-- [ ] 状态用色块 + 左边 3px border-left，**不用 emoji**
-
----
-
 ## 设计模式
 
 **单模式**（v4 起固化）：本 skill **不再检测 anti-ai-feel-design**，永远用内置的 `report.template.html` 渲染。
@@ -380,10 +339,10 @@ function httpPost(path, body) {
 ## 适用 vs 不适用
 
 ✅ **适用**：
-- 报表类接口批量验证（业务/数据分析/导出）
+- 任意 REST 接口的批量验证（查询/详情/导出）
 - 想知道"参数是否真的影响 SQL"
 - 想给开发/产品出一份"能点击看入参出参"的报告
-- 已在开发中的 Spring Boot 项目（localhost / 内网 IP）
+- 已在开发中的任意 HTTP 服务 (localhost / 内网 IP / 公网都行)
 
 ❌ **不适用**：
 - 单元测试 —— 那是 JUnit / Mockito 范畴
