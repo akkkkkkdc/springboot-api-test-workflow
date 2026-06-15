@@ -1,4 +1,4 @@
-# springboot-api-test-workflow
+﻿# springboot-api-test-workflow
 
 > 批量测试任意 REST 接口 · 3 套入参交叉验证 · 单文件 HTML 报告 · 真服务测试（绝无 mock）
 
@@ -66,6 +66,18 @@ springboot-api-test-workflow/
 
 
 
+
+## 怎么用
+
+扔给 Codex 任意一种输入,再给 `baseUrl` + `token`,它就跑:
+
+- **直接发接口清单** — `POST /report/pc/xxx` 一行一条
+- **一个 .md 文件** — 文件里写接口清单就行
+- **apipost 链接** — `https://openapi.apipost.net/swagger/v3/<id>?locale=zh-cn`,自动从 OpenAPI JSON 抽接口
+
+详细触发话术见 [`SKILL.md`](SKILL.md) 末尾。
+
+---
 
 
 ## 适用 vs 不适用

@@ -1,6 +1,6 @@
----
+﻿---
 name: springboot-api-test-workflow
-description: Use when the user wants to batch-test a list of REST endpoints (any backend, any business domain), says "跑一下接口" / "测试这批接口" / wants an HTML report with clickable rows showing real request/response, or provides a markdown table of endpoints to validate. Works on a real running HTTP service (localhost or LAN), produces a single-file HTML report. Each query endpoint is hit with 3 param sets (min / default / full) to cross-validate SQL behavior. NOT for unit tests (JUnit), not for UI/E2E (use playwright skill), and not for mock self-tests.
+description: Use when the user wants to batch-test a list of REST endpoints (any backend, any business domain), says "跑一下接口" / "测试这批接口" / wants an HTML report with clickable rows showing real request/response, or provides the endpoint list in any of 3 input forms: (a) a markdown table / 文字清单 of paths, (b) a .md file with 接口清单, (c) an apipost openapi link `https://openapi.apipost.net/swagger/v3/<id>?locale=zh-cn` to auto-derive the list. Works on a real running HTTP service (localhost or LAN), produces a single-file HTML report. Each query endpoint is hit with 3 param sets (min / default / full) to cross-validate SQL behavior. NOT for unit tests (JUnit), not for UI/E2E (use playwright skill), and not for mock self-tests.
 ---
 
 # REST 接口批量测试工作流 v4
@@ -165,6 +165,9 @@ springboot-api-test-workflow/
 - "给我出一份接口测试报告" / "要可点击看入参出参的"
 - "http://localhost:9123 用这个 token 跑一下" / 提供 baseUrl + token + 接口清单
 - "上次那个 springboot 接口测试 skill 跑一下"（指本 skill）
+- "直接发接口清单" / "把这几个接口跑一下"（按 method + path 一行一条即可）
+- "把这个 md 跑了：<file.md>"（从文件里抽接口清单）
+- "测试这个 apipost 接口：https://openapi.apipost.net/swagger/v3/<id>?locale=zh-cn"（自动从 OpenAPI JSON 抽接口）
 
 **不要**对以下场景使用：
 - 单元测试（JUnit/Mockito）—— 那是 spring-bug-audit skill 范畴

@@ -1,4 +1,4 @@
-# Node
+﻿# Node
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -36,4 +36,4 @@ inspect.js
 .env.local
 
 # OS
-desktop.ini
+docs/openapi.json
