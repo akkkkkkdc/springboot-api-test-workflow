@@ -35,3 +35,9 @@
 - [ ] JS 错误控制台无报错（点 tab / 点 chip / 点 ep-head 不报错）
 - [ ] Chrome 1440 宽度下右侧不空（container 1440 - padding 64 = 1312 内容宽）
 - [ ] 滚动到底能看到"未测接口" section
+
+## WARN 严格模式 (v4.1+)
+- 一个 episode (1 行 1 接口) 内部含 3 套入参, 仅当 3 套入参全部 WARN 才把整个 episode 判为 WARN
+- 有任一 PASS 即按 PASS 计 (PASS + WARN 混合 = PASS)
+- 原因: 实际数据中参数变化常触发空数据, 接口本身没问题; 只有 3 套都拿不到数据才视为可疑
+- aggrStrict 实现见 SKILL.md 调试原则第 11 条
