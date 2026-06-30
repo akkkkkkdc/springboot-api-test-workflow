@@ -4,7 +4,7 @@
 
 ## 报告结构
 
-- [ ] **1 行 1 接口**（不是 1 行 1 case）—— M.1 列表 / M.1 导出 是 2 行
+- [ ] **1 行 1 接口**（不是 1 行 1 case）—— 18.3.1 列表 / 18.3.1 导出 是 2 行
 - [ ] 行内 D / F / M 三个 chip 各自带状态色（PASS 绿 / WARN 黄 / FAIL 红 / UNK 灰）
 - [ ] 点开展开后，**3 套入参 tab**（DEFAULT / FULL / MIN）可切换
 - [ ] 每个 tab 里有 **REQUEST**（入参）和 **RESPONSE**（出参）双栏
@@ -35,7 +35,6 @@
 - [ ] JS 错误控制台无报错（点 tab / 点 chip / 点 ep-head 不报错）
 - [ ] Chrome 1440 宽度下右侧不空（container 1440 - padding 64 = 1312 内容宽）
 - [ ] 滚动到底能看到"未测接口" section
-
 ## WARN 严格模式 (v4.1+)
 - 一个 episode (1 行 1 接口) 内部含 3 套入参, 仅当 3 套入参全部 WARN 才把整个 episode 判为 WARN
 - 有任一 PASS 即按 PASS 计 (PASS + WARN 混合 = PASS)
