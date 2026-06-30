@@ -1,175 +1,260 @@
-﻿---
+---
 name: springboot-api-test-workflow
-description: Use when the user wants to batch-test a list of REST endpoints (any backend, any business domain), says "跑一下接口" / "测试这批接口" / wants an HTML report with clickable rows showing real request/response, or provides the endpoint list in any of 3 input forms: (a) a markdown table / 文字清单 of paths, (b) a .md file with 接口清单, (c) an apipost openapi link `https://openapi.apipost.net/swagger/v3/<id>?locale=zh-cn` to auto-derive the list. Works on a real running HTTP service (localhost or LAN), produces a single-file HTML report. Each query endpoint is hit with 3 param sets (min / default / full) to cross-validate SQL behavior. NOT for unit tests (JUnit), not for UI/E2E (use playwright skill), and not for mock self-tests.
+description: Use when the user wants to batch-test a Spring Boot REST API''s report endpoints, says "璺戜竴涓嬫帴鍙? / "娴嬭瘯杩?11 涓帴鍙? / "璺戜竴閬?/report/pc/..." / wants an HTML report of POST list + GET export-excel style endpoints, or provides a markdown table of report endpoints to validate. Works on a real running Spring Boot service (localhost or LAN), produces a single-file HTML report with clickable rows showing real request/response. NOT for unit tests (JUnit), not for UI/E2E (use playwright skill), and not for mock self-tests.
 ---
 
-# REST 接口批量测试工作流 v4
+# Spring Boot 鎶ヨ〃鎺ュ彛鎵归噺娴嬭瘯宸ヤ綔娴?v4
 
-跑通"先 token → 再测试 → 出报告"全流程。**核心原则：永远先打真服务，绝不 mock 自测骗自己。**
+璺戦€?鍏?token 鈫?鍐嶆祴璇?鈫?鍑烘姤鍛?鍏ㄦ祦绋嬨€?*鏍稿績鍘熷垯锛氭案杩滃厛鎵撶湡鏈嶅姟锛岀粷涓?mock 鑷祴楠楄嚜宸便€?*
 
-## 启动条件
+## 鍚姩鏉′欢
 
-- 你的服务**已经跑起来**(任何 HTTP 后端都行,不是本 skill 的事)
-- 用户给：① **baseUrl** ② **token** ③ **接口清单**（md/表格/文字都行）
-- Node 24+ / npm 11+
+- Spring Boot 鏈嶅姟**宸茬粡璺戣捣鏉?*锛堜笉鏄湰 skill 鐨勪簨锛?- 鐢ㄦ埛缁欙細鈶?**baseUrl** 鈶?**token** 鈶?**鎺ュ彛娓呭崟**锛坢d/琛ㄦ牸/鏂囧瓧閮借锛?- Node 24+ / npm 11+
 
-## 5 步工作流（严格按顺序）
 
-### Step 1: 摸鉴权位置（**关键，5 分钟搞定**）
+## Step 0: 鏄庣‘杈撳叆绫诲瀷锛堢豸鐪? 鍒嗛挓閬垮厤杩婃枾锛?
+鐢ㄦ埛缁欑殑鍙兘鏄?4 绉嶄箣涓?姣忕璧板娍涓嶅悓):
 
-按下面顺序试，**不否认用户的 token**，**先怀疑放置位置**：
-
-| 顺序 | 位置 | 怎么打 |
+| 鐢ㄦ埛缁?| 瀹為檯鏄?| 涓嬩竴姝?| 
 |---|---|---|
-| ① | **请求体 body（json 字段）** | `POST` 任意接口 + body 加 `"token": "<user_token>"` |
-| ② | **请求头 Authorization** | `Authorization: Bearer <user_token>"` |
-| ③ | **请求头 X-Token / token** | `token: <user_token>"`（不带 Bearer） |
-| ④ | **Cookie** | `Cookie: JSESSIONID=xxx; token=xxx` |
-| ⑤ | **Query String** | `?token=<user_token>"`（GET 接口常见） |
+| http://x.x.x.x:port | 鍚庣绔aseUrl | 璺擄紝鐩存帴鎽搁噺 |
+| *.apipost.net/swagger/... | **Apipost 鏂囨。椤?*锛堜笉鏄湇鍔★級| 鎶?HTML 瑙ｆ瀯鍑烘帴鍙ｈ皟鍚э紝浣嗚繕瑕佹槑 aseUrl 鍜?	oken |
+| localhost:port 甯﹀浘鐗?| dev 鏈嶅姟 | 闇€鐪嬪浘纭疉PI 璺緞鍓嶇紑锛圖ontext-path锛夛紝**涓嶈繃 skill 鑲畾鐢?9123** |
+| 鎺ュ彛鍚?+ 璺緞 琛ㄦ牸 | 鐢ㄦ埛鎵嬪啓 | 鐩存帴鎸夎〃鏍艰蛋 |
 
-**判断成功的标志**：响应里**业务码 = 0** 且有正常数据。**不是** 401 / "tokenlogin" / "登录过期" / code=10。
+> 缁忛獙: 鐢ㄦ埛缁?Swagger URL 鏃跺挨鍏跺父瑙併€傚彧鑳界‘瀹氭枃妗ｈВ鏋愬嚭鏉?*鍝釜**鍚庣绔璐熻矗锛岃�?aseUrl 杩樿鍐嶆暡銆?
 
-**如果 5 个位置都不行**：再考虑 token 真的过期了（**不要一开始就怀疑 token 失效**）。
 
-### Step 2: 编辑 probe.js
+## Step 0.5: 鍚姩鍓嶇‘璁や笅闈?3 椤癸紙**杈撳嚭缁欑敤鎴风‘璁?*锛?
 
-打开 `scripts/probe.js`，把顶部 4 行填好：
+> **鍘熷洜**: 鐢ㄦ埛缁欑殑 baseUrl / token / 椤圭洰璺緞, 杩欎簺闇€姝ｇ‘鎵嶈兘璺戦€氥€備笉绔?/ 閿欒繑鍥?/ 鎵撶粨鏋?code:10 閮芥槸鐢变簬杩?3 椤逛笉瀵广€?
+
+杈撳嚭鐨勬牸寮?:
+`
+[skill: springboot-api-test-workflow] 鍚姩鍓嶇‘璁?  =
+1. 椤圭洰璺緞 (鐢ㄤ簬鑷姩璇诲彇鍚庣绔鏃ュ織 / 婧愮爜):
+   榛樿: C:\\ideaProject\\companyProject\\backupIMaster\\IMasterR\\iMaster-Api
+   -> 纭疅鐢?Y 缁х画 / 缂栬緫 / 鎻愪緵鏂板湴鍧€?
+2. baseUrl:
+   榛樿: http://localhost:9123
+   -> 纭疅鐢?Y / 鎻愪緵鏂?baseUrl?
+3. token 鏉ユ簮 (token 涓嶆寔涔? 姣¤窇璁?涓€娆℃柊鐧诲綍):
+   閫夋嫨:
+     A) 鐢ㄩ粯璁ょ櫥褰曡处鍙?chunjiang / chunjiang@123) 鐜板満鐧诲綍鎷垮埌 (鎺ㄨ崘)
+     B) 浣犻紶鏂?JWT 缁?鎴
+   -> A/B?
+`
+
+### AI 蹇呴』鎵ц鐨勫姩浣?
+1. **鎵撳嵃**涓婇潰鐨勫崰浣嶇瓑寰呬綘绛? *娌℃湁绛旀涓嶈缁х画*
+2. 绛変綘璇?Y" / "A" / "B <token>" 鎴栨彁渚涙柊鍦板潃, **鎵嶈繘 Step 1**
+3. 濡傛灉浣犻€夋嫨 A (榛樿鐧诲綍), 闇€绔嬪嵆璋?POST /auth/login 鑾峰彇鏂?token (涓嶅瓨鐩樺瓙)
+4. 濡傛灉浣犻€夋嫨 B, 浣犱細缁?JWT, 鎴?AI 鍐嶈繍琛?Step 1-2
+
+绛夌敤鎴风‘璁? 鎴栫洿鎺ヨ "Y A" / "A" / "B <token>" 缁х画銆?/ 璇箰鍚庡啀寮€濮嬫祴璇曘€?
+
+### 璁板綍浣犵殑閰嶇疆
+- 濡傛灉鐢ㄦ埛纭疅 "Y" 浣跨敤榛樿椤圭洰璺緞, 鍚?~/.codex/memories/project.md 涓湁璁板綍锛堜笅嬈″彲浠ヨ嚜鍔ㄨ鍙栵級
+- 濡傛灉鐢ㄦ埛鎻愪緵浜嗘柊椤圭洰 / 鏂?baseUrl, **璁板綍涓?project.md** 涓?iMaster-Api 椤圭洰 鑺傜渷, 涓嬫¤嚜鍔ㄥ彇
+
+### 閿欒繑鍥?code:10 鏃剁殑蹇?鍒ゆ柇
+- 濡傛灉**鎵€鏈夌晫 test 閮芥槸 code:10** -> 涓?99% 鏄?baseUrl / token / 椤圭洰璺緞 閫変腑 涓? 閿欎簡
+- 涓嶈鐩存帴鎸?Step 5 璋冭瘯 token 鏃堕棿鎴?* 浠?code:10 = 鐧诲綍杩囨湡
+
+## 5 姝ュ伐浣滄祦锛堜弗鏍兼寜椤哄簭锛?
+### Step 1: 鎽搁壌鏉冧綅缃紙**鍏抽敭锛? 鍒嗛挓鎼炲畾**锛?
+鎸変笅闈㈤『搴忚瘯锛?*涓嶅惁璁ょ敤鎴风殑 token**锛?*鍏堟€€鐤戞斁缃綅缃?*锛?
+| 椤哄簭 | 浣嶇疆 | 鎬庝箞鎵?|
+|---|---|---|
+| 鈶?| **璇锋眰浣?body锛坖son 瀛楁锛?* | `POST` 浠绘剰鎺ュ彛 + body 鍔?`"token": "<user_token>"` |
+| 鈶?| **璇锋眰澶?Authorization** | `Authorization: Bearer <user_token>"` |
+| 鈶?| **璇锋眰澶?X-Token / token** | `token: <user_token>"`锛堜笉甯?Bearer锛?|
+| 鈶?| **Cookie** | `Cookie: JSESSIONID=xxx; token=xxx` |
+| 鈶?| **Query String** | `?token=<user_token>"`锛圙ET 鎺ュ彛甯歌锛?|
+
+**鍒ゆ柇鎴愬姛鐨勬爣蹇?*锛氬搷搴旈噷**涓氬姟鐮?= 0** 涓旀湁姝ｅ父鏁版嵁銆?*涓嶆槸** 401 / "tokenlogin" / "鐧诲綍杩囨湡" / code=10銆?
+**濡傛灉 5 涓綅缃兘涓嶈**锛氬啀鑰冭檻 token 鐪熺殑杩囨湡浜嗭紙**涓嶈涓€寮€濮嬪氨鎬€鐤?token 澶辨晥**锛夈€?
+### Step 2: 缂栬緫 probe.js
+
+鎵撳紑 `scripts/probe.js`锛屾妸椤堕儴 4 琛屽～濂斤細
 
 ```js
-const OUT    = '';                 // 报告输出目录
-const BASE   = '';                 // 服务地址（含端口）
-const TOKEN  = '';                 // 完整 JWT
+const OUT    = '';                 // 鎶ュ憡杈撳嚭鐩綍
+const BASE   = '';                 // 鏈嶅姟鍦板潃锛堝惈绔彛锛?const TOKEN  = '';                 // 瀹屾暣 JWT
 ```
 
-跑：
+璺戯細
 
 ```bash
 node scripts/probe.js
-# 生成 probe.json
+# 鐢熸垚 probe.json
 ```
 
-**会跑出**：
-- 9 个 POST 列表接口 × **3 套入参** = 27 case
-- 2 个 GET（详情 + 柏拉图） × 3 套入参 = 6 case
-- 9 个 GET 导出 × **2 套入参** = 18 case
-- 合计 case 数 = 你的接口数 × 每接口入参数
+**浼氳窇鍑?*锛?- 9 涓?POST 鍒楄〃鎺ュ彛 脳 **3 濂楀叆鍙?* = 27 case
+- 2 涓?GET锛堣鎯?+ 鏌忔媺鍥撅級 脳 3 濂楀叆鍙?= 6 case
+- 9 涓?GET 瀵煎嚭 脳 **2 濂楀叆鍙?* = 18 case
+- **鍚堣 51 case / 20 episode**
 
-### 3 套入参（v4 核心改进）
-
-| 套 | 含义 | 用在 |
+### 3 濂楀叆鍙傦紙v4 鏍稿績鏀硅繘锛?
+| 濂?| 鍚箟 | 鐢ㄥ湪 |
 |---|---|---|
-| **min** | 最小必要参数（只分页 + token + 必填 ID） | 验证接口最少能跑通 |
-| **default** | 默认推荐参数（如 keyword + 分页） | 用户日常用 |
-| **full** | 满参数（时间区间 + 所有维度） | 验证 SQL 因参数而异 |
+| **min** | 鏈€灏忓繀瑕佸弬鏁帮紙鍙垎椤?+ token + 蹇呭～ ID锛?| 楠岃瘉鎺ュ彛鏈€灏戣兘璺戦€?|
+| **default** | 榛樿鎺ㄨ崘鍙傛暟锛坧lanStatusList + 鍒嗛〉锛?| 鐢ㄦ埛鏃ュ父鐢?|
+| **full** | 婊″弬鏁帮紙鏃堕棿鍖洪棿 + 鎵€鏈夌淮搴︼級 | 楠岃瘉 SQL 鍥犲弬鏁拌€屽紓 |
 
-**对比 3 套的 total/records** → 自动生成 `diffNote`（大白话）：
-- `数据条数因入参不同而变化：min=46 / default=46 / full=26` → 绿
-- `3 套入参都查到 0 条数据（后端没数据）` → 黄
-- `3 套入参都查到 N 条（参数不影响）` → 蓝
-
-### Step 3: 生成 HTML 报告
+**瀵规瘮 3 濂楃殑 total/records** 鈫?鑷姩鐢熸垚 `diffNote`锛堝ぇ鐧借瘽锛夛細
+- `鏁版嵁鏉℃暟鍥犲叆鍙備笉鍚岃€屽彉鍖栵細min=46 / default=46 / full=26` 鈫?缁?- `3 濂楀叆鍙傞兘鏌ュ埌 0 鏉℃暟鎹紙鍚庣娌℃暟鎹級` 鈫?榛?- `3 濂楀叆鍙傞兘鏌ュ埌 N 鏉★紙鍙傛暟涓嶅奖鍝嶏級` 鈫?钃?
+### Step 3: 鐢熸垚 HTML 鎶ュ憡
 
 ```bash
 node scripts/inject.js probe.json report.template.html test-report.html
 ```
 
-报告**完全自包含**（无外部依赖，除 Google Fonts CDN）。**直接双击打开**。
+鎶ュ憡**瀹屽叏鑷寘鍚?*锛堟棤澶栭儴渚濊禆锛岄櫎 Google Fonts CDN锛夈€?*鐩存帴鍙屽嚮鎵撳紑**銆?
+鎶ュ憡鐗圭偣锛?*鍙傝€?examples/test-report.html**锛夛細
+- 鍗曟枃浠?HTML锛屾棤鏋勫缓
+- 椤堕儴 **4 涓?stat 鍧?*锛堟帴鍙ｆ暟 / 閫氳繃 / 璀﹀憡 / 澶辫触锛夆€斺€?鎸?episode 缁村害绠楋紙鍚屼竴鎺ュ彛鍙鏈?1 濂楀叆鍙傛寕浜嗗氨璁″叆瀵瑰簲鐘舵€侊級
+- **1 琛?1 鎺ュ彛**锛?0 episode锛?+ D / F / M 涓変釜 mini chip
+- **鐐瑰紑 episode**锛? 濂楀叆鍙?tab 鍙垏锛屾瘡涓?tab 鏈?REQUEST + RESPONSE 鍙屾爮
+- **鐪熷疄 token 鏄剧ず**锛堜笉鑴辨晱锛?- **4 绉嶇姸鎬佽壊**锛圥ASS 缁?/ WARN 榛?/ FAIL 绾?/ UNK 鐏帮級+ **2 绉?method 鑹?*锛圥OST 鐞ョ弨 / GET 闈掔豢锛?
+### 瑙嗚缂栫爜琛紙v4 棰滆壊瑙勫垯路宸插浐鍖栨爣鍑嗭級
 
-报告特点（**参考 examples/test-report.html**）：
-- 单文件 HTML，无构建
-- 顶部 **4 个 stat 块**（接口数 / 通过 / 警告 / 失败）—— 按 episode 维度算（同一接口只要有 1 套入参挂了就计入对应状态）
-- **1 行 1 接口**(N episode) + D / F / M 三个 mini chip
-- **点开 episode**：3 套入参 tab 可切，每个 tab 有 REQUEST + RESPONSE 双栏
-- **真实 token 显示**（不脱敏）
-- **4 种状态色**（PASS 绿 / WARN 黄 / FAIL 红 / UNK 灰）+ **2 种 method 色**（POST 琥珀 / GET 青绿）
-
-### 视觉编码表（v4 颜色规则·已固化标准）
-
-| 元素 | 颜色 | 语义 |
+| 鍏冪礌 | 棰滆壊 | 璇箟 |
 |---|---|---|
-| **POST method chip** | 琥珀 `#F4B740` | 业务写操作（列表/查询） |
-| **GET method chip** | 青绿 `#46D893` | 数据读取（详情/导出/柏拉图） |
-| **接口路径** | 淡蓝 accent-soft | 关键信息提亮 |
-| **size / elapsed / biz** | 淡蓝 accent-soft | 关键指标 |
-| **PASS 状态** | 实色绿 | 测试通过 |
-| **WARN 状态** | 实色黄 | 空数据 / 偏小 |
-| **FAIL 状态** | 实色红 | 接口异常 |
-| **接口名** | 主文字白 | 主信息 |
-| **kind chip** | accent-bg 紫蓝 | 维度（list / detail / chart / xls） |
+| **POST method chip** | 鐞ョ弨 `#F4B740` | 涓氬姟鍐欐搷浣滐紙鍒楄〃/鏌ヨ锛?|
+| **GET method chip** | 闈掔豢 `#46D893` | 鏁版嵁璇诲彇锛堣鎯?瀵煎嚭/鏌忔媺鍥撅級 |
+| **鎺ュ彛璺緞** | 娣¤摑 accent-soft | 鍏抽敭淇℃伅鎻愪寒 |
+| **size / elapsed / biz** | 娣¤摑 accent-soft | 鍏抽敭鎸囨爣 |
+| **PASS 鐘舵€?* | 瀹炶壊缁?| 娴嬭瘯閫氳繃 |
+| **WARN 鐘舵€?* | 瀹炶壊榛?| 绌烘暟鎹?/ 鍋忓皬 |
+| **FAIL 鐘舵€?* | 瀹炶壊绾?| 鎺ュ彛寮傚父 |
+| **鎺ュ彛鍚?* | 涓绘枃瀛楃櫧 | 涓讳俊鎭?|
+| **kind chip** | accent-bg 绱摑 | 缁村害锛坙ist / detail / chart / xls锛?|
 
-method 配色**低饱和 + 边框**，status 配色**高饱和 + 实心**，两层不会混。
+method 閰嶈壊**浣庨ケ鍜?+ 杈规**锛宻tatus 閰嶈壊**楂橀ケ鍜?+ 瀹炲績**锛屼袱灞備笉浼氭贩銆?
+> **閲嶈锛歎I 宸插浐鍖栵紝涓嶈鍐嶈皟 anti-ai-feel-design**
+> 杩欏閰嶈壊鏄敤鎴峰凡缁忕‘璁ょ殑瑙嗚鏍囧噯锛屽瓨鏀惧湪 `scripts/report.template.html`銆?> 涓嶇鏈満鏈夋病鏈夎 `anti-ai-feel-design` skill锛?*鏈?skill 閮界洿鎺ョ敤 fallback 娓叉煋**銆?> 杩欐牱淇濊瘉姣忔璺戝嚭鏉ョ殑鎶ュ憡 UI 100% 涓€鑷淬€?
+## 璁捐妯″紡锛氬崟妯″紡锛坴4 璧峰浐鍖栵級
 
-> **重要：UI 已固化，不要再调 anti-ai-feel-design**
-> 这套配色是用户已经确认的视觉标准，存放在 `scripts/report.template.html`。
-> 不管本机有没有装 `anti-ai-feel-design` skill，**本 skill 都直接用 fallback 渲染**。
-> 这样保证每次跑出来的报告 UI 100% 一致。
+鏈?skill 鍦?v4 缁堟€佹椂**涓嶅啀鑷姩妫€娴?`anti-ai-feel-design`**锛?
+- **鍞竴杈撳嚭**锛氱敤鏈?skill 鍐呯疆鐨?`scripts/report.template.html`锛堝凡鍚畬鏁?design token锛?- **涓嶅啀璋冧换浣曞叾浠?design skill**
+- **姣忔璺戝嚭鏉?UI 100% 涓€鑷?*锛堥櫎闈炰綘鎵嬪姩鏀?report.template.html锛?
+璁捐 token 瑙?`references/default-design-system.md`锛屽寘鍚細
+- 棰滆壊锛坅ccent #6F86FF / success / warn / error / POST #F4B740 / GET #46D893锛?- 瀛椾綋锛圛nter + Noto Sans SC + JetBrains Mono锛?- 瀛楀彿锛坔1 56 / stat 56 / body 15 / label 11锛?- 闂磋窛锛?pt scale锛?- 鍦嗚锛坆adge 6 / card 14 / pill 999锛?- 瑁呴グ锛坉ot grid 96px + 3 涓?radial gradient + pulse 鍦嗙偣锛?
 
-## 设计模式：单模式（v4 起固化）
+## Step 4: 鑷鎶ュ憡
+鎸? `references/self-audit-checklist.md` 璺戜竴閬嶏紙16 鏉★級锛屼笉閫氳繃灏辨敼銆?
 
-本 skill 在 v4 终态时**不再自动检测 `anti-ai-feel-design`**：
+## Step 5: 鍚庣绔鏃ュ織鑱旂郴锛堝彧褰撴棦鏈夐」鐩?鏃?*锛?
 
-- **唯一输出**：用本 skill 内置的 `scripts/report.template.html`（已含完整 design token）
-- **不再调任何其他 design skill**
-- **每次跑出来 UI 100% 一致**（除非你手动改 report.template.html）
+> 鐢ㄦ埛缁欎簡椤圭洰璺緞 (姣斿 \C:\ideaProject\companyProject\backupIMaster\IMasterR\iMaster-Api\) 鏃跺惎鐢ㄣ€傝繖鏄?skill 鐨勬牳蹇冨�涓句箟, 浣跨▼搴忚兘鑷姩鎶婂悗绔鐪熷疄閿欒鎻愪緵缁欑敤鎴枫€?
 
-设计 token 见 `references/default-design-system.md`，包含：
-- 颜色（accent #6F86FF / success / warn / error / POST #F4B740 / GET #46D893）
-- 字体（Inter + Noto Sans SC + JetBrains Mono）
-- 字号（h1 56 / stat 56 / body 15 / label 11）
-- 间距（8pt scale）
-- 圆角（badge 6 / card 14 / pill 999）
-- 装饰（dot grid 96px + 3 个 radial gradient + pulse 圆点）
+### 5.1 鍚姩鏃剁‘璁ら」鐩槸鍚︽湁鏃ュ織
+- 娴?iMaster-Api/logs/industry-error.log\ (Spring Boot + Logback)
+- 濡傛灉鏃ュ織鍦ㄥ叾浠栦綅缃, 璁╃敤鎴锋寚, 鎴栫敤 Glob \logs/**/error*.log\ 鎵捐
 
-## Step 4: 自检报告
+### 5.2 璺戝嚭鏃跺悓姝ユ挙鏃ュ織
+\\\js
+// probe 鐨?run 涓?/ 璺戝畬鍚?+ 绛?500ms~1500ms 绛?Logback flush
+// 鐒跺悗 read + grep 鏈€杩?5s-15s 瀹氭椂绐楀彛涓?ExceotionHandlerConfig / ERROR 琛?/
+\\\
 
-按 `references/self-audit-checklist.md` 跑一遍（16 条），不通过就改。
+### 5.3 瑙ｆ瀯 ERROR 鍧?
+鏃ュ織鏍煎紡锛?
+\\\
+2026-06-30 11:28:24.618 [http-nio-9123-exec-7] ERROR c.w.i.config.ExceotionHandlerConfig - 
+### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Unknown column 'u.employee_no' in 'field list'
+### The error may exist in file [C:\ideaProject\...\mapper\ProductionPlanDetailMapper.xml]
+### SQL: select u.id as userId , u.employee_no as employeeNo , ...
+### Cause: java.sql.SQLSyntaxErrorException: Unknown column 'u.employee_no' in 'field list'
+\\\
 
-## 调试原则（**踩过的坑**）
+鎻愬彇 3 涓瓧娉? mapperFile / unknownColumn / SQL / cause) 鍏?backendDiag\ 瀛楁, 褰?report.template.html 閲?\enderBackendDiag(c)\ 鎵撳嚭鐣岄潰銆?
 
-1. **不要一开始就否认用户的 token**——先试 5 个鉴权位置
-2. **GET 接口的 token 必须拼到 query string**——POST 在 body 里。**两个都试**
-3. **`probe.js` 里的 GET 构造必须有 `u.searchParams.set(''token'', token)`**——不然 GET 永远 401
-4. **业务码解析要支持字符串**——后端可能 `"code": "-1"`（带引号）而不是 `"code": -1`
-5. **详情接口 splitId 是必传**——3 套入参都必须带（v4 探针自动注入）
-6. **JWT 没 exp 字段不等于 token 永久有效**——后端可能用 Redis 或 IP 绑定的 session
-7. **同一 token 不能跨 session 用**——拿 token 立刻连打 51 个，别存起来分批跑
-8. **导出 Excel 的 content-type 不一定是 `spreadsheetml`**——也可能是 `application/vnd.ms-excel`（xls 旧格式）
-9. **PowerShell 写 JS 文件用 `node -e` 或 `Out-File` 转义很坑**——用 `node script.js` 跑独立脚本最稳
-10. **method chip CSS 没生效？**——检查 JS 里 `class="ep-method"` 是否拼接了 method 名（必须是 `class="ep-method POST"`）
+### 5.4 鑱旂郴绛栫暐
+| 鎯呭喌 | 鑱旂郴绛栫暐 |
+|---|---|
+| 4 涓?FAIL 閮芥槸 mapper 鐩稿悓 (鍚?com.wuyuan.industry.mapper.XxxMapper.xml\) | 鍏?1 涓?diag, 澶氫釜 case 鍏辫祫婧?/ 澶嶇敤 mapperFile / unknownColumn |
+| 澶氫釜 mapper | 1 mapper = 1 diag, 鎸?url 鍓?Path 鎴?controller 娣峰悎鍒? |
+| 闈炲父瑙? (mapper 澶氫釜 + 鐩稿悓鏍峰紡) | 鎶?Path 缁?1-2 灞?Mapper 鍏宠仈, 涓嶈寮哄埗鍏? |
 
-## 文件结构
+### 5.5 鎶ュ憡鏄剧ず
+- **FAIL episode 灞曞紑** 鍚?RESPONSE 鍧椾笅澶氫竴娈?\"鍚庣绔 ERROR 鏃ュ織鎻愬綍\" 灞? 鍐呭 = mapperFile + unknownColumn + SQL + cause, 椤哄簳涓?\"澶嶅埗璇婃柇\" 鎸夐挳 (绛惧?Claude Code 鐢ㄧ殑 markdown)
+- **callout 椤堕儴** 涓?\"鍏ㄩ儴澶嶅埗\" 鎸夐挳, 涓€閿皐鏁?N 涓?FAIL 鐨勬墍鏈夎瘖鏂?
+- 澶嶅埗鐨勫叿浣撳瓧娉曪細
+\\\
+# 18.6.1 鍛樺伐宸ヨ祫缁熻(鍒楄〃) 澶辫触
+鐣?: GET /report/pc/staff-salary-statistics
+鍝嶅簲: {code:-1, msg: 鎶辨瓑, 妫€绱㈣鍙ュ紓甯?..}
+鍚庣绔 cause: java.sql.SQLSyntaxErrorException: Unknown column 'u.employee_no' in field list
+mapper: com\\wuyuan\\industry\\mapper\\ProductionPlanDetailMapper.xml
+\\\
+
+
+> 濡傛灉鐢ㄦ埛纭疅浜嗛」鐩牴璺緞, **璺戞帴娴佺▼浼氳嚜鍔ㄨ鍙栧悗绔鏃ュ織** 鍏?Step 5 (鍚庣绔鏃ュ織鑱旂郴), 涓嶈璺宠繃銆?## Step 4: 鑷鎶ュ憡
+
+鎸?`references/self-audit-checklist.md` 璺戜竴閬嶏紙16 鏉★級锛屼笉閫氳繃灏辨敼銆?
+
+## PowerShell 缂栫爜閾捐矾 (Windows 鐜洿)
+- **姘镐箙涓嶈**鐢?Set-Content -Encoding utf8 鍐欏惈涓枃鐨?JS 鑴氭湰锛堜細鎹?GBK锛?
+- 鎺ㄨ崘:
+  - Out-File -Encoding utf8 -FilePath path
+  - [System.IO.File]::WriteAllText(, , [System.Text.UTF8Encoding]::new(True)) (甯?BOM)
+  - Here-String (@"..."@) + Out-File
+- irm 鏄?PowerShell 7+ 鐨?Invoke-RestMethod 缂╁啓, **5.x 娌℃湁**
+- curl 鏄?Invoke-WebRequest 缂╁啓, **query string 涓殑 ?locale=zh-cn 浼氳褰撴垚鍙橀噺**, 鐢?--Uri 鍙傛暟鎴?{ } 鎷兼帴
+
+
+## Excel 导出响应处理 (v4 必看)
+- **不要** 鎶?Excel 浜岃繘鍒舵暟鎹?(Buffer) 褰?utf-8 瀛楃涓茬敤 uf.toString('utf8') 鍐嶅瓨 esponseText
+  - 鍘熷洜: Excel 鍐呮枃浣撳寘鍚?<!DOCTYPE <html> } ) 绛夊瓧绗? 浼氭埅鏂?JS 瀛楃涓? 瀵艰嚧 const RAW = [...] 璇彞璇娉曢敊璇? 鏁翠釜鎶ュ憡娓叉煋宕?  8 涓?episode 涓€涓兘涓嶆樉绀?
+- **姝ｇ‘鍋氭硶**: 妫?Content-Type 鍖?excel / spreadsheetml 鏃? 璁?esponseText = '<binary Excel ' + buf.length + ' bytes>' 鍗冲彲
+- judge 鍑芥暟: Excel 绫诲瀷 case 鐩存帴 size > 800 璁?PASS, < 800 璁?WARN, **涓嶈 JSON.parse**
+
+## 璋冭瘯鍘熷垯锛?*韪╄繃鐨勫潙**锛?
+1. **涓嶈涓€寮€濮嬪氨鍚﹁鐢ㄦ埛鐨?token**鈥斺€斿厛璇?5 涓壌鏉冧綅缃?2. **GET 鎺ュ彛鐨?token 蹇呴』鎷煎埌 query string**鈥斺€擯OST 鍦?body 閲屻€?*涓や釜閮借瘯**
+3. **`probe.js` 閲岀殑 GET 鏋勯€犲繀椤绘湁 `u.searchParams.set(''token'', token)`**鈥斺€斾笉鐒?GET 姘歌繙 401
+4. **涓氬姟鐮佽В鏋愯鏀寔瀛楃涓?*鈥斺€斿悗绔彲鑳?`"code": "-1"`锛堝甫寮曞彿锛夎€屼笉鏄?`"code": -1`
+5. **璇︽儏鎺ュ彛 splitId 鏄繀浼?*鈥斺€? 濂楀叆鍙傞兘蹇呴』甯︼紙v4 鎺㈤拡鑷姩娉ㄥ叆锛?6. **JWT 娌?exp 瀛楁涓嶇瓑浜?token 姘镐箙鏈夋晥**鈥斺€斿悗绔彲鑳界敤 Redis 鎴?IP 缁戝畾鐨?session
+7. **鍚屼竴 token 涓嶈兘璺?session 鐢?*鈥斺€旀嬁 token 绔嬪埢杩炴墦 51 涓紝鍒瓨璧锋潵鍒嗘壒璺?8. **瀵煎嚭 Excel 鐨?content-type 涓嶄竴瀹氭槸 `spreadsheetml`**鈥斺€斾篃鍙兘鏄?`application/vnd.ms-excel`锛坸ls 鏃ф牸寮忥級
+9. **PowerShell 鍐?JS 鏂囦欢鐢?
+ode -e 鎴?Out-File 杞箟寰堝潙**鈥斺€旂敤 
+ode script.js 璺戠嫭绔嬭剼鏈渶绋?
+10. **method chip CSS 娌＄敓鏁堬紵**鈥斺€旀鏌?JS 閲?class=ep-method` 鏄惁鎷兼帴浜?method 鍚嶏紙蹇呴』鏄?class=ep-method POST`锛?
+11. **WARN 严格模式**: 3 套入参 (DEFAULT/FULL/MIN) 全部 WARN 才判 WARN, 有任一 PASS 即算 PASS. 原因: 实际数据中参数变化常触发空数据, 接口本身没问题; 只有 3 套都拿不到数据才视为可疑. aggr 函数实现:
+```js
+function aggrStrict(cases) {
+  const s = { PASS:0, WARN:0, FAIL:0, UNK:0 };
+  for (const c of cases) s[c.status] = (s[c.status]||0)+1;
+  if (s.FAIL > 0) return "FAIL";
+  if (s.PASS > 0) return "PASS";                 // 有一条 PASS 即算 PASS
+  if (s.WARN > 0 && s.UNK === 0) return "WARN";  // 全部 WARN 才算 WARN
+  if (s.UNK > 0) return "UNKNOWN";
+  return "PASS";
+}
+```
 
 ```
 springboot-api-test-workflow/
-├── SKILL.md                                    # 本文件
-├── scripts/
-│   ├── probe.js                                # 跑 51 case（清单驱动）
-│   ├── inject.js                               # probe.json → HTML
-│   └── report.template.html                    # HTML 模板（含固化 UI 设计）
-├── references/
-│   ├── auth-5-positions.md                     # 鉴权 5 个位置详解
-│   ├── default-design-system.md                # 内置设计 token（v4 终态）
-│   ├── newman-vs-node-raw.md                   # 为什么不用 Newman
-│   ├── self-audit-checklist.md                 # 16 条自检
-│   └── what-is-mock-and-why-not.md             # 解释 mock ≠ 真测试
-└── examples/
-    ├── interfaces-mock.md                     # 示例接口清单（mock）
-    ├── test-report.html                        # 生成的报告（最终态）
-    └── test-report-top.png                     # 报告顶部截图
+鈹溾攢鈹€ SKILL.md                                    # 鏈枃浠?鈹溾攢鈹€ scripts/
+鈹?  鈹溾攢鈹€ probe.js                                # 璺?51 case锛堟竻鍗曢┍鍔級
+鈹?  鈹溾攢鈹€ inject.js                               # probe.json 鈫?HTML
+鈹?  鈹斺攢鈹€ report.template.html                    # HTML 妯℃澘锛堝惈鍥哄寲 UI 璁捐锛?鈹溾攢鈹€ references/
+鈹?  鈹溾攢鈹€ auth-5-positions.md                     # 閴存潈 5 涓綅缃瑙?鈹?  鈹溾攢鈹€ default-design-system.md                # 鍐呯疆璁捐 token锛坴4 缁堟€侊級
+鈹?  鈹溾攢鈹€ newman-vs-node-raw.md                   # 涓轰粈涔堜笉鐢?Newman
+鈹?  鈹溾攢鈹€ self-audit-checklist.md                 # 16 鏉¤嚜妫€
+鈹?  鈹斺攢鈹€ what-is-mock-and-why-not.md             # 瑙ｉ噴 mock 鈮?鐪熸祴璇?鈹斺攢鈹€ examples/
+    鈹溾攢鈹€ interfaces-18.3.md                      # 绀轰緥鎺ュ彛娓呭崟
+    鈹溾攢鈹€ test-report.html                        # 鐢熸垚鐨勬姤鍛婏紙鏈€缁堟€侊級
+    鈹斺攢鈹€ test-report-top.png                     # 鎶ュ憡椤堕儴鎴浘
 ```
 
-## 调用本 skill 的话术
-
-当用户说以下任意一种时触发：
-- "把这 11 个接口跑一遍" / "测一下销售订单 / 客户 / 订单明细"
-- "给我出一份接口测试报告" / "要可点击看入参出参的"
-- "http://localhost:9123 用这个 token 跑一下" / 提供 baseUrl + token + 接口清单
-- "上次那个 springboot 接口测试 skill 跑一下"（指本 skill）
-- "直接发接口清单" / "把这几个接口跑一下"（按 method + path 一行一条即可）
-- "把这个 md 跑了：<file.md>"（从文件里抽接口清单）
-- "测试这个 apipost 接口：https://openapi.apipost.net/swagger/v3/<id>?locale=zh-cn"（自动从 OpenAPI JSON 抽接口）
-
-**不要**对以下场景使用：
-- 单元测试（JUnit/Mockito）—— 那是 spring-bug-audit skill 范畴
-- 前端 UI E2E（浏览器自动化）—— 那是 playwright skill
-- 仅 mock 自测（没有真服务）—— 拒绝，明确说"没服务就没法测"
+## 璋冪敤鏈?skill 鐨勮瘽鏈?
+褰撶敤鎴疯浠ヤ笅浠绘剰涓€绉嶆椂瑙﹀彂锛?- "鎶婅繖 11 涓姤琛ㄦ帴鍙ｈ窇涓€閬? / "娴嬩竴涓?18.3.1~18.3.11"
+- "缁欐垜鍑轰竴浠芥帴鍙ｆ祴璇曟姤鍛? / "瑕佸彲鐐瑰嚮鐪嬪叆鍙傚嚭鍙傜殑"
+- "http://localhost:9123 鐢ㄨ繖涓?token 璺戜竴涓? / 鎻愪緵 baseUrl + token + 鎺ュ彛娓呭崟
+- "涓婃閭ｄ釜 springboot 鎺ュ彛娴嬭瘯 skill 璺戜竴涓?锛堟寚鏈?skill锛?
+**涓嶈**瀵逛互涓嬪満鏅娇鐢細
+- 鍗曞厓娴嬭瘯锛圝Unit/Mockito锛夆€斺€?閭ｆ槸 spring-bug-audit skill 鑼冪暣
+- 鍓嶇 UI E2E锛堟祻瑙堝櫒鑷姩鍖栵級鈥斺€?閭ｆ槸 playwright skill
+- 浠?mock 鑷祴锛堟病鏈夌湡鏈嶅姟锛夆€斺€?鎷掔粷锛屾槑纭"娌℃湇鍔″氨娌℃硶娴?
